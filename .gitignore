@@ -26,8 +26,9 @@ dist/
 .env.*
 !.env.example
 
-# ACME runtime data (keep acme.ini.example)
+# ACME runtime data (keep acme.ini.example and the container config)
 acme.ini
 !acme.ini.example
+!site-gateway/acme/acme.ini
 data/
 logs/

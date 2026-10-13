@@ -69,8 +69,9 @@ Details, logs to check and the manual setup: [docs/cse-setup.md](docs/cse-setup.
 
 Team Nexalware, 2026 oneM2M International Hackathon (oneM2M + ETSI MEC).
 
-- TBD (name, role)
-- TBD (name, role)
+- Abraham Folorunso
+- Dare Timileyin
+- Sunday Gabriel
 
 ## License
 

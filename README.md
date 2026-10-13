@@ -58,3 +58,7 @@ Team Nexalware, 2026 oneM2M International Hackathon (oneM2M + ETSI MEC).
 
 - TBD (name, role)
 - TBD (name, role)
+
+## License
+
+Apache License 2.0. See [LICENSE](LICENSE).

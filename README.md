@@ -45,7 +45,20 @@ None of these are implemented yet.
 
 ## Quick start
 
-Coming soon. For the current CSE setup see [docs/cse-setup.md](docs/cse-setup.md).
+```sh
+cp .env.example .env    # then set DB_PW (and POSTGRES_IMAGE on Apple Silicon)
+docker compose up -d
+docker compose ps       # wait until all four services are healthy
+```
+
+Verify that ACME (site MN-CSE) is registered to Mobius4 (IN-CSE):
+
+```sh
+curl -s -H 'X-M2M-Origin: /id-mn' -H 'X-M2M-RI: 1' -H 'X-M2M-RVI: 3' 'http://localhost:7599/Mobius?fu=1&ty=16'
+# expected: {"m2m:uril":["Mobius/id-mn"]}
+```
+
+Details, logs to check and the manual setup: [docs/cse-setup.md](docs/cse-setup.md).
 
 ## Links
 

@@ -1,15 +1,128 @@
-# GridSense docker-compose skeleton.
+# GridSense local stack: Mobius4 (IN-CSE), its database, an MQTT broker and
+# ACME as the site MN-CSE, which registers to Mobius4 on start.
 #
-# This file will be filled in once the services exist. Nothing below is a
-# working service definition yet; the services are listed as comments only.
+#   cp .env.example .env      # set DB_PW; on Apple Silicon also POSTGRES_IMAGE
+#   docker compose up -d
 #
-# Planned services:
+# Verification and the interop fixes this relies on: docs/cse-setup.md.
 #
-# services:
-#   mobius4:       # IN-CSE (cloud). Built from https://github.com/IoTKETI/mobius4 at a pinned commit. See cloud/mobius4/.
-#   postgres:      # PostgreSQL for mobius4. Image and credentials from .env (POSTGRES_IMAGE, DB_*).
-#   mosquitto:     # MQTT broker for site devices. See site-gateway/mosquitto/.
-#   acme-site:     # Site MN-CSE (ACME). See site-gateway/acme/.
-#   orchestrator:  # Site Orchestrator AE. See site-gateway/orchestrator/.
-#   simulator:     # Software grid sensor, battery and loads. See simulator/.
-#   dashboard:     # Next.js dashboard, reads from mobius4. See dashboard/.
+# CSE_POA and CSE_SP_ID are written into Mobius4's database on first start
+# only. If either changes, reset with `docker compose down -v`.
+
+name: gridsense
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  postgres:
+    # PostGIS, as Mobius4 requires. The default image is amd64-only; on arm64
+    # (Apple Silicon) set POSTGRES_IMAGE in .env, see .env.example.
+    image: ${POSTGRES_IMAGE:-postgis/postgis:17-3.5}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-mobius4}
+      POSTGRES_USER: ${DB_USER:?set DB_USER in .env}
+      POSTGRES_PASSWORD: ${DB_PW:?set DB_PW in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # No ports: reachable from the compose network only.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    logging: *logging
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    volumes:
+      - ./site-gateway/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    # No ports: reachable from the compose network only.
+    healthcheck:
+      # A publish the broker accepts, not just an open port.
+      test: ["CMD-SHELL", "mosquitto_pub -h 127.0.0.1 -p 1883 -t healthcheck -m up -q 0 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    logging: *logging
+
+  mobius4:
+    # Built from the upstream repo at the tested commit. No Mobius4 source is
+    # copied into this repo. See cloud/mobius4/README.md.
+    build:
+      context: https://github.com/IoTKETI/mobius4.git#3da4d8523694b5077e348ab1c9e769fb3a30df24
+    image: gridsense-mobius4:3da4d85
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mosquitto:
+        condition: service_healthy
+    environment:
+      # Empty: Mobius4 generates an admin identity on first start and keeps it
+      # on the mobius4-identity volume. It is a credential.
+      CSE_ADMIN: ${CSE_ADMIN:-}
+      # Must match ACME's serviceProviderID (docs/cse-setup.md, Fix 4)
+      CSE_SP_ID: ${CSE_SP_ID:-//gridsense.local}
+      # Service name with the http:// scheme (docs/cse-setup.md, Fix 3)
+      CSE_POA: ${CSE_POA:-http://mobius4:7599}
+      HTTP_PORT: 7599
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-mobius4}
+      DB_USER: ${DB_USER:?set DB_USER in .env}
+      DB_PW: ${DB_PW:?set DB_PW in .env}
+      MQTT_ENABLED: "true"
+      MQTT_HOST: mosquitto
+      MQTT_PORT: 1883
+      HELMET_ENABLED: "true"
+      RATELIMIT_ENABLED: "true"
+      RATELIMIT_MAX: 500
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "7599:7599"
+    volumes:
+      - mobius4-identity:/var/lib/mobius4
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1:7599/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging: *logging
+
+  acme-site:
+    build: ./site-gateway/acme
+    image: gridsense-acme-site:2026.5.3
+    restart: unless-stopped
+    depends_on:
+      mobius4:
+        condition: service_healthy
+    environment:
+      # Empty or unset falls back to ACME's built-in default, which ACME warns
+      # about at startup. ACME refuses to start with an empty secret.
+      ACME_SECURITY_SECRET: ${ACME_SECURITY_SECRET:-acme}
+      # debug shows the 60 s registrar liveness check; info does not
+      ACME_LOG_LEVEL: ${ACME_LOG_LEVEL:-info}
+    ports:
+      - "8081:8081"
+    volumes:
+      - acme-data:/acme/data
+    logging: *logging
+
+  # Planned, not built yet:
+  #   orchestrator:  # Site Orchestrator AE. See site-gateway/orchestrator/.
+  #   simulator:     # Software grid sensor, battery and loads. See simulator/.
+  #   dashboard:     # Next.js dashboard, reads from mobius4. See dashboard/.
+
+volumes:
+  pgdata:
+  mobius4-identity:
+  acme-data:

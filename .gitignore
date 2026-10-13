@@ -1,0 +1,33 @@
+# Python
+venv/
+.venv/
+__pycache__/
+.pytest_cache/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+build/
+dist/
+
+# PlatformIO
+.pio/
+
+# macOS
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+
+# Environment files (keep .env.example)
+.env
+.env.*
+!.env.example
+
+# ACME runtime data (keep acme.ini.example)
+acme.ini
+!acme.ini.example
+data/
+logs/

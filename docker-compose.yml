@@ -1,0 +1,15 @@
+# GridSense docker-compose skeleton.
+#
+# This file will be filled in once the services exist. Nothing below is a
+# working service definition yet; the services are listed as comments only.
+#
+# Planned services:
+#
+# services:
+#   mobius4:       # IN-CSE (cloud). Built from https://github.com/IoTKETI/mobius4 at a pinned commit. See cloud/mobius4/.
+#   postgres:      # PostgreSQL for mobius4. Image and credentials from .env (POSTGRES_IMAGE, DB_*).
+#   mosquitto:     # MQTT broker for site devices. See site-gateway/mosquitto/.
+#   acme-site:     # Site MN-CSE (ACME). See site-gateway/acme/.
+#   orchestrator:  # Site Orchestrator AE. See site-gateway/orchestrator/.
+#   simulator:     # Software grid sensor, battery and loads. See simulator/.
+#   dashboard:     # Next.js dashboard, reads from mobius4. See dashboard/.

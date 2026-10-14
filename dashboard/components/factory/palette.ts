@@ -14,35 +14,39 @@ export interface ScenePalette {
   ambient: number;
   sun: number;
   bloom: number;
+  /** Filmic for dark; linear for light, so a white background stays white. */
+  toneMapping: "aces" | "linear";
 }
 
 export const PALETTES: Record<Theme, ScenePalette> = {
   dark: {
-    background: "#070b14",
-    ground: "#0f1622",
-    floor: "#4b5668",
+    background: "#000000",
+    ground: "#050505",
+    floor: "#464b53",
     marking: "#eab308",
-    wall: "#34425a",
-    steel: "#64748b",
-    hemiSky: "#dbe4ff",
-    hemiGround: "#1e293b",
+    wall: "#2b3038",
+    steel: "#5e646d",
+    hemiSky: "#e8ecf2",
+    hemiGround: "#14161a",
     hemi: 1.05,
     ambient: 0.22,
     sun: 1.5,
     bloom: 1.15,
+    toneMapping: "aces",
   },
   light: {
-    background: "#e8edf4",
-    ground: "#d3dbe6",
-    floor: "#c3cbd7",
+    background: "#ffffff",
+    ground: "#f5f6f8",
+    floor: "#c9ced6",
     marking: "#ca8a04",
-    wall: "#a7b3c4",
-    steel: "#7c8899",
+    wall: "#aab2be",
+    steel: "#7f8894",
     hemiSky: "#ffffff",
-    hemiGround: "#94a3b8",
+    hemiGround: "#9aa3af",
     hemi: 1.35,
     ambient: 0.35,
     sun: 1.9,
     bloom: 0.5,
+    toneMapping: "linear",
   },
 };

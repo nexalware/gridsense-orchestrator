@@ -16,11 +16,11 @@ const FactoryScene = dynamic(() => import("@/components/factory/FactoryScene"), 
 const NO_INSETS: Insets = { left: 0, right: 0, top: 0, bottom: 0 };
 
 export default function FactoryView() {
-  const { snapshot, connection, error, events, setGrid, pendingGrid } = useGridsense(1000);
+  const { snapshot, connection, events, setGrid, pendingGrid } = useGridsense(1000);
   const prefs = useUiPrefs();
   const narrow = useNarrow();
 
-  // H scene only, L event log, T theme, Esc leaves scene only.
+  // H scene only, P site status, L event log, T theme, Esc leaves scene only.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -28,6 +28,7 @@ export default function FactoryView() {
       if (el && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName))) return;
       const key = e.key.toLowerCase();
       if (key === "h") togglePref("sceneOnly");
+      else if (key === "p") togglePref("railOpen");
       else if (key === "l") togglePref("logOpen");
       else if (key === "t") togglePref("theme");
       else if (key === "escape") updatePrefs({ sceneOnly: false });
@@ -39,7 +40,9 @@ export default function FactoryView() {
   // Screen space the panels cover, so the camera centres the factory in the
   // free area (matches the sizes in Hud.module.css).
   const insets: Insets =
-    prefs.sceneOnly || narrow ? NO_INSETS : { left: 348, right: prefs.logOpen ? 360 : 12, top: 64, bottom: 52 };
+    prefs.sceneOnly || narrow
+      ? NO_INSETS
+      : { left: prefs.railOpen ? 320 : 0, right: prefs.logOpen ? 320 : 0, top: 48, bottom: 0 };
 
   return (
     <main className="factory">
@@ -47,7 +50,6 @@ export default function FactoryView() {
       <Hud
         snapshot={snapshot}
         connection={connection}
-        error={error}
         events={events}
         pendingGrid={pendingGrid}
         onToggleGrid={setGrid}

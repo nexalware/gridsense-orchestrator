@@ -1,22 +1,22 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { ACCENTS, PREFS_KEY, type Accent, type Theme } from "@/lib/theme";
+import { PREFS_KEY, type Theme } from "@/lib/theme";
 
-// Per-browser display preferences: theme, accent colour, event log open or
+// Per-browser display preferences: theme, status panel and event log open or
 // closed, and "scene only" (all panels hidden, for recording). Kept in
 // localStorage; everything still works if storage is unavailable.
 
-export { ACCENTS, type Accent, type Theme };
+export type { Theme };
 
 export interface UiPrefs {
   theme: Theme;
-  accent: Accent;
+  railOpen: boolean;
   logOpen: boolean;
   sceneOnly: boolean;
 }
 
-const DEFAULTS: UiPrefs = { theme: "dark", accent: "amber", logOpen: true, sceneOnly: false };
+const DEFAULTS: UiPrefs = { theme: "dark", railOpen: true, logOpen: true, sceneOnly: false };
 
 let prefs: UiPrefs = DEFAULTS;
 let loaded = false;
@@ -29,27 +29,20 @@ function load(): UiPrefs {
   } catch {
     // storage blocked or corrupt: defaults
   }
-  const next: UiPrefs = {
+  return {
     theme: stored.theme === "light" ? "light" : "dark",
-    accent: stored.accent && stored.accent in ACCENTS ? stored.accent : DEFAULTS.accent,
+    railOpen: stored.railOpen ?? DEFAULTS.railOpen,
     logOpen: stored.logOpen ?? DEFAULTS.logOpen,
     // Scene-only is a per-visit mode; ?view=scene opens the page in it.
     sceneOnly: new URLSearchParams(window.location.search).get("view") === "scene",
   };
-  return next;
-}
-
-function apply(p: UiPrefs) {
-  const root = document.documentElement;
-  root.dataset.theme = p.theme;
-  root.style.setProperty("--accent", ACCENTS[p.accent]);
 }
 
 function getSnapshot(): UiPrefs {
   if (!loaded) {
     loaded = true;
     prefs = load();
-    apply(prefs);
+    document.documentElement.dataset.theme = prefs.theme;
   }
   return prefs;
 }
@@ -61,10 +54,10 @@ function subscribe(listener: () => void) {
 
 export function updatePrefs(change: Partial<UiPrefs>) {
   prefs = { ...getSnapshot(), ...change };
-  apply(prefs);
+  document.documentElement.dataset.theme = prefs.theme;
   try {
     // Scene-only is not persisted: a reload always shows the panels.
-    localStorage.setItem(PREFS_KEY, JSON.stringify({ theme: prefs.theme, accent: prefs.accent, logOpen: prefs.logOpen }));
+    localStorage.setItem(PREFS_KEY, JSON.stringify({ theme: prefs.theme, railOpen: prefs.railOpen, logOpen: prefs.logOpen }));
   } catch {
     // not persisted; the change still applies to this page
   }
@@ -76,7 +69,7 @@ export function useUiPrefs(): UiPrefs {
 }
 
 /** Flip a boolean preference, or the theme, from the current value. */
-export function togglePref(key: "sceneOnly" | "logOpen" | "theme") {
+export function togglePref(key: "sceneOnly" | "railOpen" | "logOpen" | "theme") {
   const current = getSnapshot();
   if (key === "theme") updatePrefs({ theme: current.theme === "dark" ? "light" : "dark" });
   else updatePrefs({ [key]: !current[key] });

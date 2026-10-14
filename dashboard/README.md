@@ -113,11 +113,12 @@ Every change appears in the event log with its timestamp.
 
 ## Display
 
-- Dark theme by default, light theme on the sun/moon button or `T`. Accent colour swatches in the header. Both are remembered per browser.
-- Event log: collapse with the chevron or `L`; a tab with the count of new events brings it back.
+- Black theme by default, white theme on the sun/moon button or `T`. Remembered per browser.
+- Site status panel (left: grid supply, battery, loads) and event log (right) both collapse: the chevron in each panel, or `P` and `L`. A small tab brings each back; the event log tab shows how many events arrived while it was closed.
 - Scene only, for recording: the expand button, `H`, or open `/?view=scene`. `H` or `Esc` brings the panels back. The camera re-centres the factory in whatever space the panels leave.
+- If oneM2M becomes unreachable, a notice appears under the header and the panels keep the last state read. The event log records when the connection was lost and restored.
 - Drag to orbit, scroll to zoom.
-- Planned pages (status table, priorities config, AI approvals) are listed in the header but not built.
+- Planned pages (status table, priorities config, AI approvals) will be separate routes under `app/`; nothing for them is shown yet.
 
 ![Light theme](../docs/images/factory-light.png)
 
@@ -131,7 +132,7 @@ lib/onem2m.ts                 typed oneM2M HTTP helper (server and dev feed)
 lib/gridsense.ts              resource tree names and content types
 lib/server/                   server-only: env config, snapshot, error mapping
 lib/useGridsense.ts           client polling and event log
-lib/uiPrefs.ts, lib/theme.ts  theme, accent, log and scene-only preferences
+lib/uiPrefs.ts, lib/theme.ts  theme, panel and scene-only preferences
 components/Hud.tsx            2D overlay
 components/factory/           3D scene (parts, palette, state colours)
 scripts/dev-feed.ts           DEV ONLY feed

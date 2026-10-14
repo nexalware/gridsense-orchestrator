@@ -1,14 +1,11 @@
-/* Design tokens. Dark is the default; [data-theme="light"] switches.
-   --accent is set from the accent picker (lib/uiPrefs.ts). System fonts only:
-   the site gateway may have no internet. */
+/* Design tokens. Dark (black) is the default; [data-theme="light"] switches.
+   Sharp corners and hairline borders. System fonts only: the site gateway may
+   have no internet. State colours (ok, warn, alert...) never change. */
 
 :root {
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-
-  --accent: #f5a524;
-  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
-  --accent-glow: color-mix(in srgb, var(--accent) 55%, transparent);
+  --radius: 2px;
 
   --ok: #22c55e;
   --info: #3b82f6;
@@ -17,34 +14,32 @@
   --alert: #ef4444;
   --live: #facc15;
 
-  --bg: #060a12;
-  --bg-glow: radial-gradient(1200px 700px at 55% 35%, #101a2c 0%, #060a12 70%);
-  --panel: rgba(12, 18, 30, 0.78);
-  --panel-solid: #0c121e;
-  --raised: rgba(148, 163, 184, 0.07);
-  --border: rgba(148, 163, 184, 0.14);
-  --border-strong: rgba(148, 163, 184, 0.26);
-  --text: #e6edf6;
-  --muted: #8a97aa;
-  --faint: #566275;
-  --label-bg: rgba(10, 15, 26, 0.86);
-  --shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+  --bg: #000000;
+  --panel: rgba(0, 0, 0, 0.78);
+  --panel-solid: #000000;
+  --raised: rgba(255, 255, 255, 0.04);
+  --hover: rgba(255, 255, 255, 0.08);
+  --border: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.2);
+  --text: #f5f5f5;
+  --muted: #8f8f8f;
+  --faint: #5c5c5c;
+  --label-bg: rgba(0, 0, 0, 0.82);
   color-scheme: dark;
 }
 
 :root[data-theme="light"] {
-  --bg: #eef2f7;
-  --bg-glow: radial-gradient(1200px 700px at 55% 35%, #ffffff 0%, #e6ebf2 75%);
+  --bg: #ffffff;
   --panel: rgba(255, 255, 255, 0.86);
   --panel-solid: #ffffff;
-  --raised: rgba(15, 23, 42, 0.04);
-  --border: rgba(15, 23, 42, 0.1);
-  --border-strong: rgba(15, 23, 42, 0.18);
-  --text: #0f172a;
-  --muted: #536175;
-  --faint: #8a96a7;
-  --label-bg: rgba(255, 255, 255, 0.92);
-  --shadow: 0 10px 28px rgba(15, 23, 42, 0.1);
+  --raised: rgba(0, 0, 0, 0.03);
+  --hover: rgba(0, 0, 0, 0.06);
+  --border: rgba(0, 0, 0, 0.1);
+  --border-strong: rgba(0, 0, 0, 0.2);
+  --text: #0a0a0a;
+  --muted: #5f5f5f;
+  --faint: #9a9a9a;
+  --label-bg: rgba(255, 255, 255, 0.9);
   --live: #ca8a04;
   color-scheme: light;
 }
@@ -69,7 +64,7 @@ button {
 }
 
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 1px solid var(--text);
   outline-offset: 2px;
 }
 
@@ -77,7 +72,7 @@ button {
   position: fixed;
   inset: 0;
   overflow: hidden;
-  background: var(--bg-glow);
+  background: var(--bg);
 }
 
 .scene-loading {
@@ -85,7 +80,7 @@ button {
   place-items: center;
   height: 100%;
   color: var(--muted);
-  font: 13px var(--font-mono);
-  letter-spacing: 0.08em;
+  font: 12px var(--font-mono);
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }

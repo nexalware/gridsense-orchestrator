@@ -314,7 +314,9 @@ export function BatteryBank({ percent, voltage }: { percent: number | null; volt
     });
     // Green at 80% and above, through amber, to red at 10% and below.
     const hue = Math.max(0, Math.min(1, (shown.current - 10) / 70)) * 0.33;
-    color.setHSL(hue, 0.85, 0.48);
+    // No data yet: neutral grey, not the red of an empty battery.
+    if (percent === null) color.set("#6b7280");
+    else color.setHSL(hue, 0.85, 0.48);
     fillMaterials.current.forEach((m) => {
       if (!m) return;
       m.color.copy(color);

@@ -113,7 +113,7 @@ export default function FactoryScene({ snapshot, pendingGrid, onToggleGrid, them
       {/* Glow on lamps, the live line and lit fixtures (emissive above 1). */}
       <EffectComposer multisampling={4}>
         <Bloom mipmapBlur luminanceThreshold={1} luminanceSmoothing={0.25} intensity={palette.bloom} />
-        <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+        <ToneMapping mode={palette.toneMapping === "aces" ? ToneMappingMode.ACES_FILMIC : ToneMappingMode.LINEAR} />
       </EffectComposer>
     </Canvas>
   );

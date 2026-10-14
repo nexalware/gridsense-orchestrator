@@ -1,0 +1,86 @@
+/* Design tokens. Dark (black) is the default; [data-theme="light"] switches.
+   Sharp corners and hairline borders. System fonts only: the site gateway may
+   have no internet. State colours (ok, warn, alert...) never change. */
+
+:root {
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --radius: 2px;
+
+  --ok: #22c55e;
+  --info: #3b82f6;
+  --restart: #f59e0b;
+  --warn: #f97316;
+  --alert: #ef4444;
+  --live: #facc15;
+
+  --bg: #000000;
+  --panel: rgba(0, 0, 0, 0.78);
+  --panel-solid: #000000;
+  --raised: rgba(255, 255, 255, 0.04);
+  --hover: rgba(255, 255, 255, 0.08);
+  --border: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.2);
+  --text: #f5f5f5;
+  --muted: #8f8f8f;
+  --faint: #5c5c5c;
+  --label-bg: rgba(0, 0, 0, 0.82);
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --bg: #ffffff;
+  --panel: rgba(255, 255, 255, 0.86);
+  --panel-solid: #ffffff;
+  --raised: rgba(0, 0, 0, 0.03);
+  --hover: rgba(0, 0, 0, 0.06);
+  --border: rgba(0, 0, 0, 0.1);
+  --border-strong: rgba(0, 0, 0, 0.2);
+  --text: #0a0a0a;
+  --muted: #5f5f5f;
+  --faint: #9a9a9a;
+  --label-bg: rgba(255, 255, 255, 0.9);
+  --live: #ca8a04;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 1px solid var(--text);
+  outline-offset: 2px;
+}
+
+.factory {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.scene-loading {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  color: var(--muted);
+  font: 12px var(--font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}

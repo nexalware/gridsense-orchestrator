@@ -4,7 +4,8 @@ Offline-first, power-aware device coordination on oneM2M that sheds loads lowest
 
 ## Status
 
-- Working: site MN-CSE (ACME) registered to IN-CSE (Mobius4).
+- Working: CSE stack in Docker Compose, with the site MN-CSE (ACME) registered to the IN-CSE (Mobius4).
+- First version: dashboard with a 3D virtual factory, showing the site live from oneM2M. Until the bridge and a device data source exist, a dev-only feed provides the data.
 - Everything else: in progress.
 
 ## Architecture
@@ -24,7 +25,7 @@ The planned design has three tiers:
 - `site-gateway/`: site MN-CSE (ACME), Orchestrator AE, Mosquitto config
 - `bridge/`: Interworking Proxy Entity (IPE) between the Nexalware platform and oneM2M
 - `simulator/`: software grid sensor, battery and loads, plus scripted test scenarios
-- `dashboard/`: Next.js dashboard that reads state from Mobius4
+- `dashboard/`: Next.js dashboard and 3D virtual factory; reads oneM2M server-side through Mobius4, plus a dev-only data feed
 - `firmware/`: ESP32 firmware per node type (PlatformIO)
 - `hardware/`: Proteus schematics, wiring notes, bill of materials
 - `libs/`: shared Python libraries (oneM2M request helper)

@@ -1,8 +1,9 @@
-# GridSense local stack: Mobius4 (IN-CSE), its database, an MQTT broker and
-# ACME as the site MN-CSE, which registers to Mobius4 on start.
+# GridSense local stack: Mobius4 (IN-CSE), its database, an MQTT broker,
+# ACME as the site MN-CSE (registers to Mobius4 on start) and the dashboard.
 #
 #   cp .env.example .env      # set DB_PW; on Apple Silicon also POSTGRES_IMAGE
 #   docker compose up -d
+#   docker compose --profile dev up -d    # adds the DEV ONLY data feed
 #
 # Verification and the interop fixes this relies on: docs/cse-setup.md.
 #
@@ -117,10 +118,58 @@ services:
       - acme-data:/acme/data
     logging: *logging
 
+  dashboard:
+    # Next.js dashboard and 3D virtual factory. Talks oneM2M server-side only;
+    # the browser only ever calls this service. See dashboard/README.md.
+    build: ./dashboard
+    image: gridsense-dashboard:local
+    restart: unless-stopped
+    depends_on:
+      mobius4:
+        condition: service_healthy
+      acme-site:
+        condition: service_healthy
+    environment:
+      # Reads the site resources through Mobius4, which forwards to ACME.
+      ONEM2M_BASE_URL: ${ONEM2M_BASE_URL:-http://mobius4:7599}
+      ONEM2M_CSE_PATH: ${ONEM2M_CSE_PATH:-/~/id-mn/cse-mn}
+      ONEM2M_ORIGINATOR: ${ONEM2M_ORIGINATOR:-Cgridsense-dashboard}
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging: *logging
+
+  dev-feed:
+    # DEV ONLY: stand-in for the devices and the Orchestrator until the bridge
+    # and a data source exist. Starts only with `docker compose --profile dev`.
+    profiles: ["dev"]
+    build:
+      context: ./dashboard
+      target: dev-feed
+    image: gridsense-dev-feed:local
+    restart: unless-stopped
+    depends_on:
+      acme-site:
+        condition: service_healthy
+    environment:
+      # Site-local, like the bridge will be: writes straight into ACME.
+      DEV_FEED_ONEM2M_BASE_URL: http://acme-site:8081
+      ONEM2M_CSE_PATH: ${ONEM2M_CSE_PATH:-/~/id-mn/cse-mn}
+      # The dashboard's originator, so the feed can grant it access in the ACP.
+      ONEM2M_ORIGINATOR: ${ONEM2M_ORIGINATOR:-Cgridsense-dashboard}
+      DEV_FEED_SPEED: ${DEV_FEED_SPEED:-1}
+      DEV_FEED_RESTART_GAP_S: ${DEV_FEED_RESTART_GAP_S:-10}
+      DEV_FEED_FAULT: ${DEV_FEED_FAULT:-}
+    logging: *logging
+
   # Planned, not built yet:
   #   orchestrator:  # Site Orchestrator AE. See site-gateway/orchestrator/.
   #   simulator:     # Software grid sensor, battery and loads. See simulator/.
-  #   dashboard:     # Next.js dashboard, reads from mobius4. See dashboard/.
 
 volumes:
   pgdata:

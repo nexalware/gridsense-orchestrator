@@ -261,6 +261,21 @@ acmecse
 
 ACME deletes its old `<remoteCSE>` on Mobius4 before re-registering, so Mobius4 needs no reset.
 
+### Fix 5: Mobius4 rewrites the originator on forwarded requests
+
+Found when the dashboard (an application in the cloud tier) read the site resources through Mobius4. Mobius4 does forward requests addressed SP-relative to the site CSE (`http://mobius4:7599/~/id-mn/cse-mn/...`) on to ACME. The forwarding itself works for RETRIEVE and CREATE.
+
+Symptom: the same request succeeds against ACME directly but fails through Mobius4, even for the originator that created the resource:
+
+```text
+GET http://localhost:8081/~/id-mn/cse-mn/<ae>/<container>/la   X-M2M-Origin: C<app>  -> 2000
+GET http://localhost:7599/~/id-mn/cse-mn/<ae>/<container>/la   X-M2M-Origin: C<app>  -> 4103 {"m2m:dbg":"originator has no permission for RETRIEVE"}
+```
+
+Cause: Mobius4 forwards with the originator converted to its SP-relative form. Its log shows `"fr":"C<app>"` on the request it received and `"fr":"/Mobius4/C<app>"` on the request it forwarded to `http://acme-site:8081/...`. ACME checks access for `/Mobius4/C<app>`, which owns nothing and is in no `<accessControlPolicy>`.
+
+Fix: name both forms in the ACP rules on ACME, `C<app>` for direct access and `/Mobius4/C<app>` for access through Mobius4. The dev feed does this for the dashboard's originator (`acp-gridsense-devices`, `acp-gridsense-grid-input`; see [`security.md`](security.md)). With that, the dashboard reads and writes through Mobius4.
+
 ## 4. Verify
 
 In the ACME console, after start:
@@ -287,6 +302,7 @@ Use `/id-mn` as the originator here, not the admin. A `<remoteCSE>` created by a
 - **Hard-coded LAN IP (manual setup only).** `CSE_POA` (Mobius4) and `cseHost` (ACME) both hold the machine's LAN IP. Changing Wi-Fi breaks the setup, and fixing Mobius4's side needs `docker compose down -v`. The Compose quick start uses service names instead.
 - **Values stored on first start.** Mobius4 stores `CSE_POA` and `CSE_SP_ID` in its database on first start and ignores later changes in `.env`. If either ever changes, reset with `docker compose down -v`.
 - **No `dcse` sent to Mobius4.** Excluding it means Mobius4 doesn't see ACME's descendant CSEs. Irrelevant with one site; revisit for multi-site / MEC.
+- **Risk: 3-level routing (IN → MEC → site) is likely to fail.** Mobius4 does not accept the `dcse` (descendantCSEs) attribute, and ACME's author confirmed on the hackathon Discord that `dcse` is required for routing between multiple CSEs. With the site ACME registered to a MEC ACME that is registered to Mobius4, Mobius4 could not route requests down to the site CSE. Two levels (site registered directly to Mobius4, as now) work: Fix 5 shows Mobius4 forwarding to the site CSE. Not yet tested with three levels; options are listed in [`decisions.md`](decisions.md).
 - **Default ACME secret.** ACME warns `Using default secret key` at startup. Set `ACME_SECURITY_SECRET` in `.env` (Compose) or `[basic.config] secret` (manual setup) before any shared or VM deployment.
 - **ACME is MN-CSE over HTTP only.** MQTT binding comes in M2 for the ESP32 devices. The Compose stack already runs Mosquitto, but only Mobius4 connects to it for now.
 - **Mosquitto allows anonymous clients.** Local development only. It is not published to the host; add authentication before publishing it or connecting real devices.

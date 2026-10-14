@@ -1,0 +1,113 @@
+You are working in the repo nexalware/gridsense-orchestrator (2026 oneM2M International Hackathon, Team Nexalware, project GridSense). Before changing anything, read: README.md, docs/cse-setup.md, docs/decisions.md, docker-compose.yml, .env.example, site-gateway/acme/acme.ini, dashboard/README.md.
+
+Work on a new branch: feat/3d-factory. Do not commit to main and do not push. When done, give me the commit, push and PR commands.
+
+## Context: what the team has agreed (record it, don't change it)
+- oneM2M is the core of the system. Nexalware (our own platform) must NOT be presented as the core.
+- Layering, top to bottom:
+    Applications (Orchestrator AE, Dashboard + 3D factory, AI agent via MCP) — talk oneM2M ONLY
+    oneM2M service layer: ACME site MN-CSE (/id-mn, CSEBase "cse-mn") registered to Mobius4 IN-CSE (/Mobius4, CSEBase "Mobius"), SP-ID //gridsense.local
+    Bridge = Interworking Proxy Entity (IPE), runs locally at the site. Two-way: device state goes UP into ACME, commands come DOWN from ACME
+    Nexalware = device/network/security layer under oneM2M (MQTT, WebSocket, HTTPS to devices)
+    Devices: virtual (3D factory + a data source: Proteus or a simulator script, still being decided) or real
+- Rule: decisions start above oneM2M and go down through it. No app calls Nexalware or a device directly.
+- Owners: Dare = bridge (bridge/), Dynamo = interim report deck, Abraham = infrastructure + dashboard + 3D factory (this task).
+- Known risk (from ACME's author on the hackathon Discord): Mobius4 does not accept the dcse (descendantCSEs) attribute, so in a 3-level topology (site ACME → MEC ACME → Mobius4) the IN-CSE cannot route requests down to the site CSE. Two-level (site registered directly to Mobius4, as now) is fine.
+
+## Goal of this task
+Build the first working version of the dashboard with a 3D virtual factory that shows GridSense's state LIVE FROM oneM2M, plus a dev-only data feed so it can be developed and demoed before the bridge and the device data source exist.
+
+The 3D factory replaces a physical site in the demo video: the devices are "installed" in it virtually, and it must reflect what's stored in oneM2M — it never makes decisions itself.
+
+## 1. Dashboard app (dashboard/)
+- Next.js (App Router) + TypeScript, current stable versions, pinned exactly in package.json. Package manager: npm.
+- 3D: React Three Fiber + @react-three/drei.
+- Keep it simple and clean: no UI framework unless clearly needed; plain CSS modules or Tailwind is fine.
+- Pages:
+  - "/" — the 3D factory view with a 2D overlay (HUD).
+  - Keep space for future pages (status table, priorities config, AI approvals) but do not build them now.
+
+## 2. The 3D factory scene
+Build from primitives (boxes, cylinders, planes) — low-poly, no external 3D assets in this task, so there are no licence issues. Must clearly show:
+- Grid supply (pole/line entering the building) — visibly live vs dead.
+- Battery bank — fill level matches battery %, colour shifts as it drops.
+- P1 Cold room (critical, never shed by policy) — e.g. a cold-room box with an indicator light.
+- P2 Machine / fan — fan blades rotate when ON, stop when OFF.
+- P3 Lights — emissive ceiling lights, dark when OFF.
+- Per-load visual states: ON, OFF (shed), RESTARTING (pulse/blink), FAULT (red).
+- A "Grid switch" the user can click in the scene (or in the HUD) to set grid OFF/ON. This acts as the grid sensor device: it WRITES the new grid status into oneM2M through the dashboard's API. It does not change any load directly.
+- Orbit camera controls with a sensible default angle that frames the whole factory for a video recording.
+- HUD (2D overlay): grid status, battery %, each load's priority and state, connection status to oneM2M, and a scrolling event log of state changes with timestamps.
+- Subtle polish is welcome (lighting, shadows, smooth transitions), but correctness and clarity first.
+
+## 3. oneM2M access: server-side proxy only
+- The browser must NEVER call Mobius4 or ACME directly and must never see any oneM2M originator or credential.
+- Implement Next.js route handlers under dashboard/app/api/ that talk oneM2M over HTTP (headers: X-M2M-Origin, X-M2M-RI unique per request, X-M2M-RVI: 3, correct Content-Type with ;ty= on creates).
+  - GET /api/state — returns one JSON snapshot: grid status, battery %, each load (id, name, priority, state, measuredCurrent if present), plus lastUpdated.
+  - POST /api/grid — body {"status":"ON"|"OFF"}; writes a new value to the grid-status resource.
+- Put the oneM2M request code in a small typed helper module (dashboard/lib/onem2m.ts) so it can later move into libs/onem2m.
+- Config via env vars, documented in .env.example: ONEM2M_BASE_URL, ONEM2M_CSE_PATH, ONEM2M_ORIGINATOR (dashboard AE originator, must start with "C" — ACME only allows originators matching C*, S* by default).
+- Reading path: the dashboard is a cloud app, so it should read through Mobius4. First try reading the site resources via Mobius4 forwarding to ACME using the SP-relative path (e.g. http://mobius4:7599/~/id-mn/cse-mn/...). Test it. If Mobius4 forwarding to ACME does not work, read from ACME directly (http://acme-site:8081/...) for now, keep the base URL configurable, and record exactly what failed in docs/cse-setup.md as "Fix 5" (symptom, cause, workaround) — same format as Fixes 1–4.
+- Live updates: poll /api/state about once per second from the client. Do not build oneM2M subscriptions/notifications in this task; note it as a planned improvement.
+
+## 4. Provisional resource tree (the contract other components will use)
+Use simple <AE> + <container> + <contentInstance> with JSON content for now (flexContainer/timeSeries come later in M2 and need definitions registered in ACME). All on the site ACME (CSEBase cse-mn):
+- AE grid-sensor   → container grid-status    → latest contentInstance {"status":"ON"|"OFF","ts":...}
+- AE battery       → container battery-state  → {"percent":0-100,"voltage":...,"ts":...}
+- AE load-p1-coldroom, load-p2-machine, load-p3-lights → container load-state → {"priority":1|2|3,"state":"ON"|"OFF"|"RESTARTING"|"FAULT","ratedCurrent":...,"measuredCurrent":...,"ts":...}
+- Labels on each AE: e.g. "gridsense/type:load", "gridsense/priority:3", so they're discoverable.
+- Access control: create an <accessControlPolicy> that lets the dashboard originator RETRIEVE/DISCOVER all of these, and CREATE only on grid-status. Do not rely on the admin originator in the dashboard. Document the ACP in docs/security.md.
+Write this tree into docs/resource-tree.md, clearly marked "PROVISIONAL — to be aligned with the bridge (Dare)". Include a short ASCII tree and the JSON shape of each contentInstance.
+
+## 5. Dev-only test feed (stand-in until the bridge and data source exist)
+- Location: dashboard/scripts/dev-feed.ts (run with an npm script, e.g. npm run dev-feed). Clearly labelled DEV ONLY in code comments and README: it stands in for the devices AND a minimal stand-in for the Orchestrator, and will be replaced by the bridge + real Orchestrator AE.
+- On start: create the AEs, containers and ACP above on ACME if they don't exist (idempotent).
+- Then run a loop that:
+  - Normal: grid ON, battery charging slowly, all loads ON with plausible measured current.
+  - Reacts to grid-status written by the dashboard's grid switch (poll it):
+    - Grid OFF → battery drains over time; below 40% shed P3; below 25% shed P2; P1 never shed. Set shed loads' measuredCurrent ≈ 0.
+    - Grid ON → staggered restart in priority order P1 → P2 → P3 with a configurable gap (default 10 s), each load going RESTARTING → ON.
+  - Optional flag to inject a FAULT on one load (relay didn't switch) for demo purposes.
+- Speed should be configurable (e.g. DEV_FEED_SPEED) so a full outage/restart cycle can be shown in under a minute for the video.
+
+## 6. Docker Compose
+- Add a dashboard Dockerfile (multi-stage, production build, non-root) and a "dashboard" service to docker-compose.yml: depends on acme-site and mobius4 being healthy, publishes port 3000, env from .env.
+- Add the dev feed as a separate service under a compose profile "dev" (so `docker compose --profile dev up` starts it, and plain `docker compose up` does not).
+- Keep everything that already works unchanged.
+
+## 7. CI
+- Extend .github/workflows/ci.yml with a dashboard job: npm ci, lint, typecheck, build (in dashboard/). It must pass.
+
+## 8. Docs
+- dashboard/README.md: what it is, how it reads oneM2M (proxy, never direct), env vars, how to run locally and with Compose, how to run the dev feed, and the demo flow (flip grid switch → shed by priority → restore → staggered restart).
+- docs/decisions.md — add, dated 2026-10-13/14, without changing existing entries:
+  - Bridge/IPE architecture (agreed 13 Oct with Dare): oneM2M core; bridge = IPE running locally at the site; two-way; Nexalware is the device/network/security layer under oneM2M; apps talk oneM2M only. Decided.
+  - Virtual factory: devices are represented in a 3D virtual factory in the dashboard; it renders oneM2M state and writes only the grid-switch input. Decided.
+  - Device data source: Proteus vs simulator script. Open.
+  - Owners: bridge (Dare), interim deck (Dynamo), infra + dashboard/3D (Abraham).
+  - Risk: Mobius4 rejects dcse → 3-level routing (IN → MEC → site) likely fails; options: (A) ACME as IN-CSE, (B) flat topology with site and MEC both registered to Mobius4, (C) design around downward routing using pollingChannel + announcement, (D) wait for Mobius4 dcse support. Open; test before M3.
+- docs/cse-setup.md Known limitations: add the dcse routing risk (ACME's author confirmed on the hackathon Discord that dcse is required for routing between multiple CSEs).
+- README.md: update Status (CSE stack working; dashboard + 3D factory first version) and the repository map line for dashboard/. Do not rewrite other sections.
+- docs/architecture.md: replace "To be written" with the layered architecture above (ASCII diagram + short explanation of each layer and the "decisions go down through oneM2M" rule), noting the MEC tier as planned.
+
+## Testing (required — actually run it)
+1. docker compose down -v, then docker compose up -d --build (all services healthy, including dashboard).
+2. Run the dev feed (compose profile or npm script). Confirm the AEs/containers/ACP exist on ACME (curl with the right originator) and record the commands used.
+3. Confirm /api/state returns correct JSON and which read path worked (via Mobius4 forwarding or ACME direct). If forwarding failed, Fix 5 must be written.
+4. In a browser: the scene loads, values update about once per second, clicking the grid switch to OFF makes the battery drain and P3 then P2 shed (P1 stays on), switching ON produces the staggered restart P1→P2→P3. Take screenshots of normal, outage (after shedding) and restart states and save them under docs/images/.
+5. Confirm the browser never calls ports 7599 or 8081 directly (check the network tab) and no originator appears in client JS.
+6. npm run lint, typecheck and build pass; the CI workflow passes locally if possible.
+7. Restart without -v and confirm the feed and dashboard recover.
+
+## Rules
+- Don't touch bridge/, simulator/, firmware/, hardware/, cloud/ai-agent/, cloud/mcp/ — other people own them.
+- No secrets in git: no .env, no passwords, no Mobius4 admin ID. Check git status and git diff --staged before committing.
+- Don't claim anything in docs that you did not verify in the testing step.
+- Plain, specific writing in docs. No marketing language, no emojis.
+-  Dont make a commit yourself, always provide the commit message instead in one line
+
+## When done, report
+- Files created/changed with a one-line purpose each.
+- Test evidence: docker compose ps, the curl/API outputs, which read path worked, screenshot paths, lint/typecheck/build results.
+- Anything you couldn't verify, and any departures from this brief with the reason.
+- Commit, push and PR commands.
